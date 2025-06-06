@@ -7,6 +7,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <cctype>
 
 
 namespace argparser {
@@ -117,6 +118,17 @@ std::optional<T> Argument::get() const {
     
     } else if constexpr (std::is_same_v<T, double>) {
 
+        try {
+
+            return std::stod(value);
+        
+        } catch (...) {
+
+            return std::nullopt;
+        }
+    
+    } else if constexpr (std::is_same_v<T, bool>) { 
+
         if (m_type == ArgumentType::Flag) {
 
             return m_isSet;
@@ -124,14 +136,15 @@ std::optional<T> Argument::get() const {
 
         std::string lowerValue = value;
         std::transform(lowerValue.begin(), lowerValue.end(),
-                        lowerValue.begin(), ::tolower);
+                        lowerValue.begin(), [](char c) 
+                        { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
 
         return (lowerValue == "true" || lowerValue == "1"||
                 lowerValue == "yes" || lowerValue == "on");
     
     } else {
         static_assert(sizeof(T) == 0, "Unsupported type for get()");
-    }  
+    }
 }
 
 }
