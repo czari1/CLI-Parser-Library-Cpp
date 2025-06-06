@@ -27,6 +27,25 @@ Argument& ArgParser::addFlag(std::string_view shortName, std::string_view longNa
     return *argPtr;
 }
 
+Argument& ArgParser::addOption(std::string_view shortName, std::string_view longName,
+                    std::string_view description,
+                    std::string_view defaultValue) {
+    auto arg = std::make_unique<Argument> (shortName, longName, description, defaultValue);
+    auto* argPtr = arg.get();
+
+    m_arguments.push_back(std::move(arg));
+
+    if(!shortName.empty()) {
+        m_argMap[std::string(shortName)] = argPtr;
+    }
+
+    if(!longName.empty()) {
+        m_argMap[std::string(longName)] = argPtr;
+    }
+
+    return *argPtr;
+}
+
 Argument& ArgParser::addPositional(std::string_view name,std::string_view description,
                                     bool required ) {
     auto arg = std::make_unique<Argument> (name, description, required);
@@ -80,7 +99,7 @@ void ArgParser::parsePositionalOption(const std::vector<std::string>& args) {
 
     for (const auto& arg : m_arguments) {
 
-        if (arg->type() == ArgumentType::Positonal && positionalIndex < m_positionalValues.size()) {
+        if (arg->type() == ArgumentType::Positional && positionalIndex < m_positionalValues.size()) {
             arg->setValue(m_positionalValues[positionalIndex++]);
         }
     }
@@ -154,7 +173,7 @@ void ArgParser::validateRequiredArgument() const {
 
         if (arg->isRequired() && !arg->isSet()) {
             
-            if (arg->type() == ArgumentType::Positonal) {
+            if (arg->type() == ArgumentType::Positional) {
                 
                 throw MissingArgumentError(arg->name());
             } else {
@@ -263,7 +282,7 @@ std::string ArgParser::formatUsage() const {
 
     for (const auto& arg : m_arguments) {
 
-        if (arg->type() != ArgumentType::Positonal) {
+        if (arg->type() != ArgumentType::Positional) {
 
             if (!hasOptions) {
                 oss << " [OPTIONS]";
@@ -276,7 +295,7 @@ std::string ArgParser::formatUsage() const {
 
     for (const auto& arg : m_arguments) {
 
-        if (arg->type() == ArgumentType::Positonal) {
+        if (arg->type() == ArgumentType::Positional) {
             oss << " ";
 
             if (!arg->isRequired()) {
@@ -301,7 +320,7 @@ std::string ArgParser::formatArguments() const {
     for (const auto& arg : m_arguments) {
         std::string argStr;
 
-        if (arg->type() == ArgumentType::Positonal) {
+        if (arg->type() == ArgumentType::Positional) {
             argStr = arg->name();
         } else {
 
@@ -325,7 +344,7 @@ std::string ArgParser::formatArguments() const {
 
     for (const auto& arg : m_arguments) {
 
-        if (arg->type() == ArgumentType::Positonal) {
+        if (arg->type() == ArgumentType::Positional) {
 
             if (!hasPositional) {
                 oss << "Positional arguments: \n";
@@ -343,7 +362,7 @@ std::string ArgParser::formatArguments() const {
 
     for (const auto& arg : m_arguments) {
 
-        if (arg->type() != ArgumentType::Positonal) {
+        if (arg->type() != ArgumentType::Positional) {
 
             if (!hasOptions) {
 
