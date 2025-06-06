@@ -71,7 +71,8 @@ private:
                         const std::vector<std::string>::const_iterator& end);*/
     void parseShortOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
                         const std::vector<std::string>::const_iterator& end);
-    void parseLongOption(const std::string& arg);
+    void parseLongOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
+                        const std::vector<std::string>::const_iterator& end);
     void validateRequiredArgument() const;
 
     [[nodiscard]] Argument* findArgument(std::string_view name) const;

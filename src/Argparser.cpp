@@ -85,10 +85,11 @@ void ArgParser::parsePositionalOption(const std::vector<std::string>& args) {
         }
 
         if (arg.starts_with("--")) {
-            parseLongOption(arg);
-            ++it;
+            parseLongOption(arg, it, end);
+
         } else if (arg.starts_with("-") && arg.length() > 1) {
             parseShortOption(arg, it, end);
+        
         } else {
             m_positionalValues.push_back(arg);
             ++it;
@@ -134,7 +135,8 @@ void ArgParser::parseShortOption(const std::string& arg, std::vector<std::string
     }
 }
 
-void ArgParser::parseLongOption(const std::string& arg) {
+void ArgParser::parseLongOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
+                               const std::vector<std::string>::const_iterator& end) {
     auto eqPos = arg.find('=');
     std::string longName;
     std::string value;
@@ -158,12 +160,22 @@ void ArgParser::parseLongOption(const std::string& arg) {
             throw ParseError("Flag argument cannot have a value: " + arg);
         }
         argument->setFlag(true);
-    } else {
+        ++it;
+   } else {
         
-        if (eqPos == std::string::npos) {
-            throw ParseError("Option argument requires a value: " + arg);
-        } 
-        argument->setValue(value);
+        if (eqPos != std::string::npos) {
+            
+            argument->setValue(value);
+            ++it;
+        } else {
+            ++it;
+            
+            if (it == end) {
+                throw ParseError("Missing value for option: " + arg);
+            }
+            argument->setValue(*it);
+            ++it;
+        }
     }
 }
 
