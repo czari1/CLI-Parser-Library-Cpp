@@ -126,7 +126,7 @@ void ArgParser::parseShortOption(const std::string& arg, std::vector<std::string
         } else {
             ++it;
             if (it == end) {
-                throw ParseError("Misssieng value for option: " + arg);
+                throw ParseError("Missing value for option: " + arg);
             }
             argument->setValue(*it);
         }
@@ -178,7 +178,7 @@ void ArgParser::validateRequiredArgument() const {
                 throw MissingArgumentError(arg->name());
             } else {
                 std::string name = !arg-> longName().empty() ?
-                "==" + arg->longName() : "-" + arg->shortName();
+                "--" + arg->longName() : "-" + arg->shortName();
                 
                 throw MissingArgumentError(name); 
             }

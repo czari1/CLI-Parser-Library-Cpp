@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 #include <functional>
+#include <algorithm>
 
 
 namespace argparser {
@@ -13,7 +14,7 @@ namespace argparser {
 enum class ArgumentType {
     Flag,
     Option,
-    Positonal
+    Positional
 };
 
 class Argument {
@@ -75,13 +76,17 @@ private:
 
 template<typename T>
 Argument& Argument::defaultValue(T value) {
+    
     if constexpr (std::is_same_v<T, std::string>) {
-        m_defaulValue = value;
-    } else if constexpr (std::is_artithmetic_v<T>) {
+        m_defaultValue = value;
+    
+    } else if constexpr (std::is_arithmetic_v<T>) {
         m_defaultValue = std::to_string(value);
-    } else  {
-        static_assert(sizepf(T) == 0, "Unsupported type for default value");
+    
+    } else {
+        static_assert(sizeof(T) == 0, "Unsupported type for default value");
     }
+    
     return *this;
 }
 
@@ -93,7 +98,7 @@ std::optional<T> Argument::get() const {
         return std::nullopt;
     }
 
-    const std:;string& value = m_isSet ? m_currentValue : m_defaultValue;
+    const std::string& value = m_isSet ? m_currentValue : m_defaultValue;
 
     if constexpr (std::is_same_v<T, std::string>) {
 
@@ -103,7 +108,7 @@ std::optional<T> Argument::get() const {
 
         try {
 
-            return std::stod(value);
+            return std::stoi(value);
 
         } catch (...) {
 
