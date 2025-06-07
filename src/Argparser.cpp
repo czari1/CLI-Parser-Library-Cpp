@@ -316,7 +316,7 @@ std::string ArgParser::formatUsage() const {
             oss << arg->name();
 
             if (!arg->isRequired()) {
-                oss << "}";
+                oss << "]";
             }
         }
     }
