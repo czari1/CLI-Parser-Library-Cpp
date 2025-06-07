@@ -1,5 +1,5 @@
-#include "../include/Argument.hpp"
-#include "../include/Exceptions.hpp"
+#include "Argument.hpp"
+#include "Exceptions.hpp"
 
 #include <algorithm>
 #include <cctype>
