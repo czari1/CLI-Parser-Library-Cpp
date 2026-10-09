@@ -18,8 +18,8 @@ Argument::Argument(std::string_view shortName, std::string_view longName,
 
 Argument::Argument(std::string_view name, std::string_view description,
                     bool required)
-    : m_name(name), m_description(description), m_isRequired(required),
-    m_type(ArgumentType::Positional) {}
+    : m_name(name), m_description(description), m_type(ArgumentType::Positional),
+    m_isRequired(required) {}
 
 Argument& Argument::required(bool isRequired) {
     m_isRequired = isRequired;

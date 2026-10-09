@@ -35,4 +35,11 @@ public:
         : ArgumentError("Unknown argument: " + message) {}
 };
 
+/** Thrown after help text is printed; application decides exit code. */
+class HelpRequested : public std::runtime_error {
+public:
+    HelpRequested()
+        : std::runtime_error("Help requested") {}
+};
+
 }

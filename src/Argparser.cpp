@@ -81,7 +81,7 @@ void ArgParser::parsePositionalOption(const std::vector<std::string>& args) {
 
         if (arg == "--help" || arg == "-h") {
             printHelp();
-            std::exit(0);
+            throw HelpRequested();
         }
 
         if (arg.starts_with("--")) {

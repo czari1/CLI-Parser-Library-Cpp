@@ -4,13 +4,13 @@ A modern C++20 argument parser library that provides a clean and intuitive API f
 
 ## Features
 
-- **Modern C++20**: Takes advantage of the latest C++ features including concepts, string_view, and optional
+- **Modern C++20**: `string_view`, `optional`, and a small compiled library (not header-only)
 - **Type Safety**: Template-based type system with compile-time checks
 - **Flexible Arguments**: Support for flags, options, and positional arguments
 - **Validation**: Built-in argument validation with custom validator functions
 - **Automatic Help**: Generated help messages with proper formatting
 - **Exception Safety**: Comprehensive error handling with custom exception types
-- **Easy Integration**: Header-only design with simple CMake integration
+- **Easy Integration**: CMake target `argparser::argparser`
 
 ## Quick Start
 
@@ -45,6 +45,8 @@ int main(int argc, char* argv[]) {
             std::cout << "Processing " << input << " -> " << output << std::endl;
         }
         
+    } catch (const argparser::HelpRequested&) {
+        return 0;
     } catch (const argparser::ArgumentError& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
@@ -102,21 +104,19 @@ if (port) {
 
 ### CMake Integration
 
-```cmake
-# Add the library to your project
-add_subdirectory(argparser)
+Clone this repository and add it as a subdirectory (library sources live in the repo root):
 
-# Link against your target
-target_link_libraries(your_target argparser::argparser)
+```cmake
+add_subdirectory(path/to/CLI-Parser-Library-Cpp)
+target_link_libraries(your_target PRIVATE argparser::argparser)
 ```
 
 ### Manual Build
 
 ```bash
-mkdir build
-cd build
-cmake ..
-make
+cmake -B build -DBUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build
 ```
 
 ## API Reference
@@ -214,6 +214,7 @@ The library provides several exception types for different error conditions:
 - `ValidationError` - Validation failures
 - `MissingArgumentError` - Required arguments not provided
 - `UnknownArgumentError` - Unrecognized arguments
+- `HelpRequested` - `--help` / `-h` (after help text is printed; app chooses exit code)
 
 ## Usage Examples
 

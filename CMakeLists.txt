@@ -12,9 +12,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 add_library(argparser
-    src/ArgParser.cpp
+    src/Argparser.cpp
     src/Argument.cpp
 )
+
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 target_include_directories(argparser
     PUBLIC
