@@ -67,8 +67,6 @@ private:
     std::unordered_map<std::string, Argument*> m_argMap;
     std::vector<std::string> m_positionalValues;
 
-    /*void parseArgument(const std::string& arg, std::vector<std::string>::const_iterator& it,
-                        const std::vector<std::string>::const_iterator& end);*/
     void parseShortOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
                         const std::vector<std::string>::const_iterator& end);
     void parseLongOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
