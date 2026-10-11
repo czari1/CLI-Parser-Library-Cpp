@@ -10,7 +10,7 @@ A modern C++20 argument parser library that provides a clean and intuitive API f
 - **Validation**: Built-in argument validation with custom validator functions
 - **Automatic Help**: Generated help messages with proper formatting
 - **Exception Safety**: Comprehensive error handling with custom exception types
-- **Easy Integration**: Header-only design with simple CMake integration
+- **Easy Integration**: Compiled library with a small public API and simple CMake integration
 
 ## Quick Start
 

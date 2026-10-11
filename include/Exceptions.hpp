@@ -9,18 +9,23 @@ class ArgumentError : public std::runtime_error{
 public:
     explicit ArgumentError(const std::string &message)
         : std::runtime_error("Argument Error: " + message) {}
+
+protected:
+    struct PrefixedTag {};
+    ArgumentError(PrefixedTag, const std::string &message)
+        : std::runtime_error(message) {}
 };
 
-class ParseError : public std::runtime_error{
+class ParseError : public ArgumentError{
 public:
     explicit ParseError(const std::string &message)
-        : std::runtime_error("Parse Error: " + message) {}
+        : ArgumentError(PrefixedTag{}, "Parse Error: " + message) {}
 };
 
-class ValidationError : public std::runtime_error{
+class ValidationError : public ArgumentError{
 public:
     explicit ValidationError(const std::string &message)
-        : std::runtime_error("Validation Error: " + message) {}
+        : ArgumentError(PrefixedTag{}, "Validation Error: " + message) {}
 };
 
 class MissingArgumentError : public ArgumentError{

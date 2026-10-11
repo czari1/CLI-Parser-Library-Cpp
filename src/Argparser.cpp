@@ -2,27 +2,86 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <iomanip>
 
 namespace argparser {
+
+namespace {
+
+std::string normalizeName(std::string_view name) {
+    while (!name.empty() && name.front() == '-') {
+        name.remove_prefix(1);
+    }
+
+    return std::string(name);
+}
+
+bool isNumericLiteral(std::string_view arg) {
+    if (arg.size() < 2 || arg.front() != '-') {
+        return false;
+    }
+
+    bool hasDigit = false;
+    bool hasDot = false;
+
+    for (std::size_t i = 1; i < arg.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(arg[i]);
+
+        if (std::isdigit(c)) {
+            hasDigit = true;
+        } else if (arg[i] == '.' && !hasDot) {
+            hasDot = true;
+        } else {
+            return false;
+        }
+    }
+
+    return hasDigit;
+}
+
+void validateOptionNames(std::string_view shortName, std::string_view longName) {
+    if (shortName.empty() && longName.empty()) {
+        throw ArgumentError("Argument must have a short or long name");
+    }
+
+    if (shortName.size() > 1) {
+        throw ArgumentError("Short name must be a single character: " + std::string(shortName));
+    }
+}
+
+void ensureNameAvailable(const std::unordered_map<std::string, Argument*>& names,
+                        const std::string& name) {
+    if (!name.empty() && names.contains(name)) {
+        throw ArgumentError("Duplicate argument name: " + name);
+    }
+}
+
+}
 
 ArgParser::ArgParser(std::string_view programName, std::string_view description)
     : m_programName(programName), m_description(description) {}
 
 Argument& ArgParser::addFlag(std::string_view shortName, std::string_view longName,
                     std::string_view description) {
-    auto arg = std::make_unique<Argument> (shortName, longName, description);
+    const std::string normalizedShort = normalizeName(shortName);
+    const std::string normalizedLong = normalizeName(longName);
+    validateOptionNames(normalizedShort, normalizedLong);
+
+    if (!normalizedShort.empty() && normalizedShort == normalizedLong) {
+        throw ArgumentError("Duplicate argument name: " + normalizedShort);
+    }
+
+    ensureNameAvailable(m_argMap, normalizedShort);
+    ensureNameAvailable(m_argMap, normalizedLong);
+
+    auto arg = std::make_unique<Argument>(normalizedShort, normalizedLong, description);
     auto* argPtr = arg.get();
 
     m_arguments.push_back(std::move(arg));
-
-    if(!shortName.empty()) {
-        m_argMap[std::string(shortName)] = argPtr;
-    }
-
-    if(!longName.empty()) {
-        m_argMap[std::string(longName)] = argPtr;
-    }
+    registerName(normalizedShort, argPtr);
+    registerName(normalizedLong, argPtr);
 
     return *argPtr;
 }
@@ -30,42 +89,63 @@ Argument& ArgParser::addFlag(std::string_view shortName, std::string_view longNa
 Argument& ArgParser::addOption(std::string_view shortName, std::string_view longName,
                     std::string_view description,
                     std::string_view defaultValue) {
-    auto arg = std::make_unique<Argument> (shortName, longName, description, defaultValue);
+    const std::string normalizedShort = normalizeName(shortName);
+    const std::string normalizedLong = normalizeName(longName);
+    validateOptionNames(normalizedShort, normalizedLong);
+
+    if (!normalizedShort.empty() && normalizedShort == normalizedLong) {
+        throw ArgumentError("Duplicate argument name: " + normalizedShort);
+    }
+
+    ensureNameAvailable(m_argMap, normalizedShort);
+    ensureNameAvailable(m_argMap, normalizedLong);
+
+    auto arg = std::make_unique<Argument>(normalizedShort, normalizedLong, description, defaultValue);
     auto* argPtr = arg.get();
 
     m_arguments.push_back(std::move(arg));
-
-    if(!shortName.empty()) {
-        m_argMap[std::string(shortName)] = argPtr;
-    }
-
-    if(!longName.empty()) {
-        m_argMap[std::string(longName)] = argPtr;
-    }
+    registerName(normalizedShort, argPtr);
+    registerName(normalizedLong, argPtr);
 
     return *argPtr;
 }
 
-Argument& ArgParser::addPositional(std::string_view name,std::string_view description,
-                                    bool required ) {
-    auto arg = std::make_unique<Argument> (name, description, required);
+Argument& ArgParser::addPositional(std::string_view name, std::string_view description,
+                                    bool required) {
+    const std::string normalizedName = normalizeName(name);
+
+    if (normalizedName.empty()) {
+        throw ArgumentError("Positional argument name cannot be empty");
+    }
+
+    if (required) {
+        for (const auto& existing : m_arguments) {
+            if (existing->type() == ArgumentType::Positional && !existing->isRequired()) {
+                throw ArgumentError("Required positional argument cannot follow an optional one");
+            }
+        }
+    }
+
+    ensureNameAvailable(m_argMap, normalizedName);
+
+    auto arg = std::make_unique<Argument>(normalizedName, description, required);
     auto* argPtr = arg.get();
 
     m_arguments.push_back(std::move(arg));
-    m_argMap[std::string(name)] = argPtr;
+    registerName(normalizedName, argPtr);
 
     return *argPtr;
 }
 
 void ArgParser::parseOptions(int argc, char* argv[]) {
     std::vector<std::string> args;
-    args.reserve(argc);
+    args.reserve(static_cast<std::size_t>(std::max(argc - 1, 0)));
 
     for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);
     }
 
-    if (m_programName.empty() && argc > 0) {
+    if (m_programName.empty() && argc > 0 && argv[0] != nullptr) {
         m_programName = argv[0];
     }
 
@@ -73,23 +153,39 @@ void ArgParser::parseOptions(int argc, char* argv[]) {
 }
 
 void ArgParser::parsePositionalOption(const std::vector<std::string>& args) {
+    m_positionalValues.clear();
+
+    for (auto& argument : m_arguments) {
+        argument->reset();
+    }
+
     auto it = args.begin();
     const auto end = args.end();
 
     while (it != end) {
         const std::string& arg = *it;
 
-        if (arg == "--help" || arg == "-h") {
+        if (arg == "--") {
+            ++it;
+
+            for (; it != end; ++it) {
+                m_positionalValues.push_back(*it);
+            }
+            break;
+        }
+
+        if ((arg == "--help" && findArgument("help") == nullptr) ||
+            (arg == "-h" && findArgument("h") == nullptr)) {
             printHelp();
-            std::exit(0);
+            std::exit(EXIT_SUCCESS);
         }
 
         if (arg.starts_with("--")) {
             parseLongOption(arg, it, end);
 
-        } else if (arg.starts_with("-") && arg.length() > 1) {
+        } else if (arg.starts_with("-") && arg.length() > 1 && !isNumericLiteral(arg)) {
             parseShortOption(arg, it, end);
-        
+
         } else {
             m_positionalValues.push_back(arg);
             ++it;
@@ -110,29 +206,46 @@ void ArgParser::parsePositionalOption(const std::vector<std::string>& args) {
 
 void ArgParser::parseShortOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
                         const std::vector<std::string>::const_iterator& end) {
-    std::string shortName = arg.substr(1,1);
-    auto* argument = findArgument(shortName);
+    std::size_t index = 1;
 
-    if (!argument) {
-        throw UnknownArgumentError(arg);
-    }
+    while (index < arg.size()) {
+        const std::string shortName(1, arg[index]);
+        auto* argument = findArgument(shortName);
 
-    if (argument->type() == ArgumentType::Flag) {
-        argument->setFlag(true);
-        ++it;
-    } else {
+        if (!argument || argument->type() == ArgumentType::Positional) {
+            throw UnknownArgumentError(std::string("-") + shortName);
+        }
 
-        if (arg.length() > 2) {
-            argument->setValue(arg.substr(2));
+        if (argument->type() == ArgumentType::Flag) {
+            argument->setFlag(true);
+            ++index;
+            continue;
+        }
+
+        std::string value;
+
+        if (index + 1 < arg.size()) {
+            value = arg.substr(index + 1);
+
+            if (!value.empty() && value.front() == '=') {
+                value.erase(value.begin());
+            }
         } else {
             ++it;
+
             if (it == end) {
-                throw ParseError("Missing value for option: " + arg);
+                throw ParseError("Missing value for option: -" + shortName);
             }
-            argument->setValue(*it);
+
+            value = *it;
         }
+
+        argument->setValue(value);
         ++it;
+        return;
     }
+
+    ++it;
 }
 
 void ArgParser::parseLongOption(const std::string& arg, std::vector<std::string>::const_iterator& it,
@@ -150,7 +263,7 @@ void ArgParser::parseLongOption(const std::string& arg, std::vector<std::string>
 
     auto* argument = findArgument(longName);
 
-    if (!argument) {
+    if (!argument || argument->type() == ArgumentType::Positional) {
         throw UnknownArgumentError(arg);
     }
     
@@ -199,35 +312,19 @@ void ArgParser::validateRequiredArgument() const {
 }
 
 std::string ArgParser::getString(std::string_view name) const {
-    auto* arg = findArgument(name);
-    
-    return arg ? arg->getString() : "";
+    return requireArgument(name).getString();
 }
 
 int ArgParser::getInt(std::string_view name) const {
-    auto* arg = findArgument(name);
-
-    if (!arg) {
-        throw ArgumentError("Argument not found: " + std::string(name));
-    }
-
-    return arg->getInt();
+    return requireArgument(name).getInt();
 }
 
 double ArgParser::getDouble(std::string_view name) const {
-    auto* arg = findArgument(name);
-
-    if (!arg) {
-        throw ArgumentError("Argument not found: " + std::string(name));
-    }
-
-    return arg->getDouble();
+    return requireArgument(name).getDouble();
 }
 
 bool ArgParser::getBool(std::string_view name) const {
-    auto* arg = findArgument(name);
-
-    return arg ? arg->isSet() : false;
+    return requireArgument(name).getBool();
 }
 
 bool ArgParser::isSet(std::string_view name) const {
@@ -280,8 +377,30 @@ ArgParser& ArgParser::version(std::string_view version) {
     return *this;
 }
 
+void ArgParser::registerName(const std::string& name, Argument* argument) {
+    if (name.empty()) {
+        return;
+    }
+
+    if (m_argMap.contains(name)) {
+        throw ArgumentError("Duplicate argument name: " + name);
+    }
+
+    m_argMap.emplace(name, argument);
+}
+
+const Argument& ArgParser::requireArgument(std::string_view name) const {
+    auto* arg = findArgument(name);
+
+    if (!arg) {
+        throw ArgumentError("Argument not found: " + std::string(name));
+    }
+
+    return *arg;
+}
+
 Argument* ArgParser::findArgument(std::string_view name) const {
-    auto it = m_argMap.find(std::string(name));
+    auto it = m_argMap.find(normalizeName(name));
 
     return it != m_argMap.end() ? it->second : nullptr;
 }
@@ -328,6 +447,21 @@ std::string ArgParser::formatArguments() const {
     std::ostringstream oss;
 
     std::size_t maxWidth = 0;
+    const bool autoShortHelp = findArgument("h") == nullptr;
+    const bool autoLongHelp = findArgument("help") == nullptr;
+    std::string autoHelpLabel;
+
+    if (autoShortHelp && autoLongHelp) {
+        autoHelpLabel = "-h, --help";
+    } else if (autoShortHelp) {
+        autoHelpLabel = "-h";
+    } else if (autoLongHelp) {
+        autoHelpLabel = "--help";
+    }
+
+    if (!autoHelpLabel.empty()) {
+        maxWidth = autoHelpLabel.size();
+    }
 
     for (const auto& arg : m_arguments) {
         std::string argStr;
@@ -354,6 +488,17 @@ std::string ArgParser::formatArguments() const {
     bool hasPositional = false;
     bool hasOptions = false;
 
+    auto ensureOptionsHeader = [&]() {
+        if (!hasOptions) {
+
+            if (hasPositional) {
+                oss << "\n";
+            }
+            oss << "Options: \n";
+            hasOptions = true;
+        }
+    };
+
     for (const auto& arg : m_arguments) {
 
         if (arg->type() == ArgumentType::Positional) {
@@ -375,15 +520,7 @@ std::string ArgParser::formatArguments() const {
     for (const auto& arg : m_arguments) {
 
         if (arg->type() != ArgumentType::Positional) {
-
-            if (!hasOptions) {
-
-                if( hasPositional) {
-                    oss << "\n";
-                }
-                oss << "Options: \n";
-                hasOptions = true;
-            }
+            ensureOptionsHeader();
 
             std::string argStr;
 
@@ -411,6 +548,12 @@ std::string ArgParser::formatArguments() const {
             }
             oss << "\n";
         }
+    }
+
+    if (!autoHelpLabel.empty()) {
+        ensureOptionsHeader();
+        oss << " " << std::left << std::setw(static_cast<int>(maxWidth)) << autoHelpLabel
+            << " Show this help message\n";
     }
 
     return oss.str();

@@ -8,6 +8,7 @@
 #include <functional>
 #include <algorithm>
 #include <cctype>
+#include <type_traits>
 
 
 namespace argparser {
@@ -51,6 +52,7 @@ public:
 
     void setValue(std::string_view value);
     void setFlag(bool value = true);
+    void reset() noexcept;
     
     template<typename T>
     [[nodiscard]] std::optional<T> get() const;
@@ -127,7 +129,7 @@ std::optional<T> Argument::get() const {
             return std::nullopt;
         }
     
-    } else if constexpr (std::is_same_v<T, bool>) { 
+    } else if constexpr (std::is_same_v<T, bool>) {
 
         if (m_type == ArgumentType::Flag) {
 
@@ -136,12 +138,23 @@ std::optional<T> Argument::get() const {
 
         std::string lowerValue = value;
         std::transform(lowerValue.begin(), lowerValue.end(),
-                        lowerValue.begin(), [](char c) 
+                        lowerValue.begin(), [](char c)
                         { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
 
-        return (lowerValue == "true" || lowerValue == "1"||
-                lowerValue == "yes" || lowerValue == "on");
-    
+        if (lowerValue == "true" || lowerValue == "1" ||
+            lowerValue == "yes" || lowerValue == "on") {
+
+            return true;
+        }
+
+        if (lowerValue == "false" || lowerValue == "0" ||
+            lowerValue == "no" || lowerValue == "off") {
+
+            return false;
+        }
+
+        return std::nullopt;
+
     } else {
         static_assert(sizeof(T) == 0, "Unsupported type for get()");
     }

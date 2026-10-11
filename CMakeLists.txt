@@ -22,8 +22,10 @@ target_include_directories(argparser
         $<INSTALL_INTERFACE:include>
 )
 
-# Create an alias for consistent naming
 add_library(argparser::argparser ALIAS argparser)
+
+add_executable(demo demo.cpp)
+target_link_libraries(demo PRIVATE argparser::argparser)
 
 message(STATUS "")
 message(STATUS "ArgParser Configuration Summary:")

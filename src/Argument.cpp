@@ -18,8 +18,8 @@ Argument::Argument(std::string_view shortName, std::string_view longName,
 
 Argument::Argument(std::string_view name, std::string_view description,
                     bool required)
-    : m_name(name), m_description(description), m_isRequired(required),
-    m_type(ArgumentType::Positional) {}
+    : m_name(name), m_description(description), m_type(ArgumentType::Positional),
+    m_isRequired(required) {}
 
 Argument& Argument::required(bool isRequired) {
     m_isRequired = isRequired;
@@ -47,14 +47,14 @@ Argument& Argument::validator(ValidatorFunction func) {
 
 void Argument::setValue(std::string_view value) {
 
-    if (m_type ==ArgumentType::Flag) {
+    if (m_type == ArgumentType::Flag) {
         throw ValidationError("Cannot set value for flag argument");
     }
 
     std::string valueStr(value);
 
     if (m_validator && !m_validator(valueStr)) {
-        throw ValidationError("Invalid value for argument:" + valueStr);
+        throw ValidationError("Invalid value for argument: " + valueStr);
     }
 
     m_currentValue = valueStr;
@@ -68,6 +68,11 @@ void Argument::setFlag(bool value) {
     }
 
     m_isSet = value;
+}
+
+void Argument::reset() noexcept {
+    m_currentValue.clear();
+    m_isSet = false;
 }
 
 std::string Argument::getString() const {
@@ -98,8 +103,17 @@ double Argument::getDouble() const {
 
 bool Argument::getBool() const {
     auto result = get<bool>();
-    
-    return result ? *result : false;
+
+    if (!result) {
+
+        if (!m_isSet && m_defaultValue.empty()) {
+            return false;
+        }
+
+        throw ValidationError("Cannot convert value to bool");
+    }
+
+    return *result;
 }
 
 bool Argument::validate (const std::string& value) const {

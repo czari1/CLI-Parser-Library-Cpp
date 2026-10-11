@@ -75,6 +75,8 @@ private:
                         const std::vector<std::string>::const_iterator& end);
     void validateRequiredArgument() const;
 
+    void registerName(const std::string& name, Argument* argument);
+    [[nodiscard]] const Argument& requireArgument(std::string_view name) const;
     [[nodiscard]] Argument* findArgument(std::string_view name) const;
     [[nodiscard]] std::string formatUsage() const;
     [[nodiscard]] std::string formatArguments() const;
